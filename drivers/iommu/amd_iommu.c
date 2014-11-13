@@ -2335,7 +2335,8 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
  * The exported alloc_coherent function for dma_ops.
  */
 static void *alloc_coherent(struct device *dev, size_t size,
-			    dma_addr_t *dma_addr, gfp_t flag)
+			    dma_addr_t *dma_addr, gfp_t flag,
+			    struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	void *virt_addr;
@@ -2393,7 +2394,8 @@ out_free:
  * The exported free_coherent function for dma_ops.
  */
 static void free_coherent(struct device *dev, size_t size,
-			  void *virt_addr, dma_addr_t dma_addr)
+			  void *virt_addr, dma_addr_t dma_addr,
+			  struct dma_attrs *attrs)
 {
 	unsigned long flags;
 	struct protection_domain *domain;
@@ -2463,8 +2465,8 @@ static void __init prealloc_protection_domains(void)
 }
 
 static struct dma_map_ops amd_iommu_dma_ops = {
-	.alloc_coherent = alloc_coherent,
-	.free_coherent = free_coherent,
+	.alloc = alloc_coherent,
+	.free = free_coherent,
 	.map_page = map_page,
 	.unmap_page = unmap_page,
 	.map_sg = map_sg,

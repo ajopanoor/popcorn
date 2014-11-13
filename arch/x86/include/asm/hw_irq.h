@@ -35,6 +35,9 @@ extern void spurious_interrupt(void);
 extern void thermal_interrupt(void);
 extern void reschedule_interrupt(void);
 
+extern void dummy_lproc_kicked(void);
+extern void dummy_rproc_kicked(void);
+
 #ifdef CONFIG_POPCORN_SHMTUN
 /* POPCORN -- handler definition */
 extern void popcorn_net_interrupt(void);

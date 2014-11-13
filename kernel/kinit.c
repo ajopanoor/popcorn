@@ -32,7 +32,6 @@
 #include <popcorn/remote_pfn.h>
 
 
-extern unsigned long orig_boot_params;
 #define max_nodes 1 << 8
 
 

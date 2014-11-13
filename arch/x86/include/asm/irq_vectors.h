@@ -137,6 +137,10 @@
 #define	FIRST_VM86_IRQ			   3
 #define LAST_VM86_IRQ			  15
 
+#define DUMMY_LPROC_VECTOR		0xD0
+#define DUMMY_RPROC_VECTOR		0xD1
+
+
 #ifdef CONFIG_POPCORN_SHMTUN
 #define POPCORN_NET_VECTOR 0xce
 #endif

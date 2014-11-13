@@ -9436,22 +9436,28 @@ static unsigned long get_next_ts_value() {
  *
  */
 static unsigned long long* get_master_ts_counter_address() {
-    get_counter_phys_request_t request;
-    request.header.type = PCN_KMSG_TYPE_PROC_SRV_GET_COUNTER_PHYS_REQUEST;
-    request.header.prio = PCN_KMSG_PRIO_NORMAL;
+	get_counter_phys_request_t request;
+	int i;
 
-    if(!get_counter_phys_data)
-        get_counter_phys_data = kmalloc(sizeof(get_counter_phys_data_t),GFP_KERNEL);
+	request.header.type = PCN_KMSG_TYPE_PROC_SRV_GET_COUNTER_PHYS_REQUEST;
+	request.header.prio = PCN_KMSG_PRIO_NORMAL;
 
-    get_counter_phys_data->resp = 0;
-    get_counter_phys_data->response_received = 0;
+	if(!get_counter_phys_data)
+	get_counter_phys_data = kmalloc(sizeof(get_counter_phys_data_t),GFP_KERNEL);
 
-    pcn_kmsg_send(0,(struct pcn_kmsg_message*)&request);
+	get_counter_phys_data->resp = 0;
+	get_counter_phys_data->response_received = 0;
 
-    while(!get_counter_phys_data->response_received)
-        schedule();
-     
-    return (unsigned long long*)get_counter_phys_data->resp;
+	pcn_kmsg_send(0,(struct pcn_kmsg_message*)&request);
+
+	for (i = 0; i < 10; i++) {
+		udelay(10);
+		if (get_counter_phys_data->response_received)
+			return (unsigned long long*)get_counter_phys_data->resp;
+		schedule();
+	}
+
+	return -1;
 }
 
 /**
@@ -9470,6 +9476,8 @@ static void init_shared_counter(void) {
     } else {
         // ask for physical address of master's ts_counter
         ts_counter = ioremap_cache(get_master_ts_counter_address(), PAGE_SIZE);
+	if (!ts_counter)
+		return;
         printk("%s: ts_counter{%lx},*ts_counter{%lx}\n",__func__,
                 ts_counter,
                 get_next_ts_value());

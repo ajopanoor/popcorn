@@ -1,7 +1,8 @@
 VERSION = 3
-PATCHLEVEL = 2
+#SNAFU. thanks, glibc.
+PATCHLEVEL = 92
 SUBLEVEL = 14
-EXTRAVERSION = popcorn_ben
+EXTRAVERSION =
 NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*

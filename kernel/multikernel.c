@@ -14,8 +14,9 @@
 #include <linux/smp.h>
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
+#include <asm/bootparam.h>
 
-extern unsigned long orig_boot_params;
+extern struct boot_params boot_params;
 
 int mklinux_boot = 0;
 EXPORT_SYMBOL(mklinux_boot);
@@ -48,11 +49,11 @@ SYSCALL_DEFINE2(multikernel_boot, int, cpu, unsigned long, kernel_start_address)
 		return -1;
 	}
 	apicid = per_cpu(x86_bios_cpu_apicid, cpu);  
-	return mkbsp_boot_cpu(apicid, cpu, kernel_start_address);
+	return mkbsp_boot_cpu(apicid, cpu, kernel_start_address, &boot_params);
 }
 
 SYSCALL_DEFINE0(get_boot_params_addr)
 {
 	printk("POPCORN: syscall to return phys addr of boot_params structure\n");
-	return orig_boot_params;
+	return __pa(&boot_params);
 }

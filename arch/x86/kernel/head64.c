@@ -29,9 +29,6 @@
 
 #include <linux/module.h>
 
-unsigned long orig_boot_params;
-EXPORT_SYMBOL(orig_boot_params);
-
 static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
@@ -95,8 +92,6 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
-
-	orig_boot_params = (unsigned long) real_mode_data;
 
 	x86_64_start_reservations(real_mode_data);
 }

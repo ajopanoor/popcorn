@@ -50,6 +50,7 @@
 #include <asm/pci-direct.h>
 #include <linux/init_ohci1394_dma.h>
 #include <linux/kvm_para.h>
+#include <linux/dma-contiguous.h>
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -148,6 +149,8 @@ struct boot_params __initdata boot_params;
 #else
 struct boot_params boot_params;
 #endif
+
+EXPORT_SYMBOL(boot_params);
 
 /*
  * Machine setup..
@@ -959,7 +962,6 @@ void __init setup_arch(char **cmdline_p)
 			max_pfn_mapped<<PAGE_SHIFT);
 
 	setup_trampolines();
-	setup_trampolines_bsp();
 
 	init_gbpages();
 
@@ -978,6 +980,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 	memblock.current_limit = get_max_mapped();
+	dma_contiguous_reserve(0);
 
 	/*
 	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.

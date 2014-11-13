@@ -72,8 +72,6 @@
 #include <asm/smpboot_hooks.h>
 #include <asm/i8259.h>
 
-extern unsigned long orig_boot_params;
-
 /* State of each CPU */
 DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
@@ -676,7 +674,8 @@ static void __cpuinit announce_cpu(int cpu, int apicid)
  * ->wakeup_secondary_cpu.
  */
 
-int __cpuinit mkbsp_boot_cpu(int apicid, int cpu, unsigned long kernel_start_address)
+int __cpuinit mkbsp_boot_cpu(int apicid, int cpu, unsigned long kernel_start_address,
+			     void *new_boot_params)
 {
 	unsigned long boot_error = 0;
 	unsigned long start_ip;
@@ -691,7 +690,10 @@ int __cpuinit mkbsp_boot_cpu(int apicid, int cpu, unsigned long kernel_start_add
 	unsigned long *boot_params_virt_addr = TRAMPOLINE_SYM_BSP(&boot_params_phys_addr);
 	
 	*kernel_virt_addr = kernel_start_address;
-	*boot_params_virt_addr = orig_boot_params;
+	*boot_params_virt_addr = __pa(new_boot_params);
+	printk(KERN_ERR "kernel start address %p, boot params addr %p (virt %p)\n",
+	       *kernel_virt_addr, *boot_params_virt_addr,
+	       __va(*boot_params_virt_addr));
 
 	/* start_ip had better be page-aligned! */
 	start_ip = trampoline_bsp_address();
@@ -766,6 +768,7 @@ int __cpuinit mkbsp_boot_cpu(int apicid, int cpu, unsigned long kernel_start_add
 
 	return boot_error;
 }
+EXPORT_SYMBOL_GPL(mkbsp_boot_cpu);
 
 
 

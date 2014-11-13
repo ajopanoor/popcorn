@@ -998,6 +998,11 @@ apicinterrupt CALL_FUNCTION_VECTOR \
 apicinterrupt RESCHEDULE_VECTOR \
 	reschedule_interrupt smp_reschedule_interrupt
 
+apicinterrupt DUMMY_LPROC_VECTOR \
+	dummy_lproc_kicked smp_dummy_lproc_kicked
+apicinterrupt DUMMY_RPROC_VECTOR \
+	dummy_rproc_kicked smp_dummy_rproc_kicked
+
 #ifdef CONFIG_POPCORN_SHMTUN
 apicinterrupt POPCORN_NET_VECTOR \
 	popcorn_net_interrupt smp_popcorn_net_interrupt

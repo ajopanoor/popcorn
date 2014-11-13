@@ -2,18 +2,12 @@
 config VIRTIO
 	tristate
 
-# Similarly the virtio ring implementation.
-config VIRTIO_RING
-	tristate
-	depends on VIRTIO
-
 menu "Virtio drivers"
 
 config VIRTIO_PCI
 	tristate "PCI driver for virtio devices (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
 	select VIRTIO
-	select VIRTIO_RING
 	---help---
 	  This drivers provides support for virtio based paravirtual device
 	  drivers over PCI.  This requires that your VMM has appropriate PCI
@@ -39,7 +33,6 @@ config VIRTIO_BALLOON
  	tristate "Platform bus driver for memory mapped virtio devices (EXPERIMENTAL)"
  	depends on HAS_IOMEM && EXPERIMENTAL
  	select VIRTIO
- 	select VIRTIO_RING
  	---help---
  	 This drivers provides support for memory mapped virtio
 	 platform device driver.

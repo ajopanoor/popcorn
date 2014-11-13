@@ -29,7 +29,6 @@ extern unsigned long mkbsp_load_addr;
 extern unsigned long mkbsp_boot_params;
 
 extern void __init setup_trampolines(void);
-extern void __init setup_trampolines_bsp(void);
 
 extern const unsigned char trampoline_data[];
 extern const unsigned char trampoline_status[];

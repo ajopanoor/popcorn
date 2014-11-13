@@ -1388,7 +1388,6 @@ static int __init shmtun_init(void)
 	int ret = 0;
 	unsigned long dir_phys_addr, percpu_phys_addr;
 	shmtun_percpu_t *percpu_virt_addr;
-	struct boot_params *boot_params_va;
 
 	pr_info("%s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	pr_info("%s\n", DRV_COPYRIGHT);
@@ -1438,10 +1437,7 @@ static int __init shmtun_init(void)
 		memset(shmem_directory, 0x0, sizeof(shmtun_directory_t));
 
 		printk("Setting boot_params...\n");
-		boot_params_va = (struct boot_params *) 
-			(0xffffffff80000000ULL + orig_boot_params);
-		printk("Boot params virtual address: 0x%p\n", boot_params_va);
-		boot_params_va->shmtun_phys_addr = dir_phys_addr;
+		boot_params.shmtun_phys_addr = dir_phys_addr;
 	} else {
 		printk("We're the client...\n");
 
@@ -1450,6 +1446,12 @@ static int __init shmtun_init(void)
 		       (unsigned long) boot_params.shmtun_phys_addr);
 
 		dir_phys_addr = boot_params.shmtun_phys_addr;
+
+		if (!dir_phys_addr) {
+			printk(KERN_ERR "shmtun: no address passed, bailing out.\n");
+			return -1;
+		}
+
 		shmem_directory = ioremap_cache(dir_phys_addr, 
 						sizeof(shmtun_directory_t));
 		if (!shmem_directory) {
