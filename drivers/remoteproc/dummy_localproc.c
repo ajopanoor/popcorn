@@ -23,18 +23,7 @@
 
 #include "dummy_proc.h"
 
-struct dummy_rproc_resourcetable {
-	struct resource_table		main_hdr;
-	u32				offset[2];
-	/* We'd need some physical mem */
-	struct fw_rsc_hdr		rsc_hdr_mem;
-	struct fw_rsc_carveout		rsc_mem;
-	/* And some rpmsg rings */
-	struct fw_rsc_hdr		rsc_hdr_vdev;
-	struct fw_rsc_vdev		rsc_vdev;
-	struct fw_rsc_vdev_vring	rsc_ring0;
-	struct fw_rsc_vdev_vring	rsc_ring1;
-};
+extern int localproc_init(void);
 
 struct dummy_rproc_resourcetable dummy_remoteproc_resourcetable
 	__attribute__((section(".resource_table"), aligned(PAGE_SIZE))) =
@@ -89,8 +78,8 @@ struct dummy_rproc_resourcetable dummy_remoteproc_resourcetable
 };
 
 struct dummy_rproc_resourcetable *lproc = &dummy_remoteproc_resourcetable;
-bool is_bsp = false;
 unsigned char *x86_trampoline_bsp_base;
+bool is_bsp = false;
 
 void dummy_lproc_kick_bsp()
 {
@@ -112,30 +101,41 @@ void smp_dummy_lproc_kicked()
 	irq_exit();
 }
 
-/* this function should later find out the correct rproc who kicked us,
- * but, as we now have only one - we just find an rproc :)
- */
 int dummy_rproc_match(struct device *dev, void *data)
 {
 	return (dev->driver && !strcmp(dev->driver->name, DRV_NAME));
 }
 
+void *dummy_lproc_bsp_data;
+void (*dummy_lproc_bsp_callback)(void *) = NULL;
+
+int dummy_lproc_set_bsp_callback(void (*fn)(void *), void *data)
+{
+	if (unlikely(!is_bsp)) {
+		printk(KERN_ERR "%s: tried to register bsp callback on non-bsp.\n", __func__);
+		return -EFAULT;
+	}
+
+	dummy_lproc_bsp_callback = fn;
+	dummy_lproc_bsp_data = data;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dummy_lproc_set_bsp_callback);
+
 void smp_dummy_rproc_kicked()
 {
-	struct device *dev;
-	struct rproc *rproc = NULL;
 	ack_APIC_irq();
 	irq_enter();
 
-	dev = device_find_child(&platform_bus, NULL, dummy_rproc_match);
-	if (dev)
-		rproc = dev_get_drvdata(dev);
-
-	printk(KERN_INFO "BSP got kicked, rproc %s\n",
-	       rproc ? rproc->name : "NOT FOUND");
+	if (likely(dummy_lproc_bsp_callback))
+		dummy_lproc_bsp_callback(dummy_lproc_bsp_data);
+	else
+		WARN_ONCE(1, "%s: got an IPI on BSP without any callback.\n", __func__);
 
 	irq_exit();
 }
+
 
 void dummy_proc_setup_intr(void)
 {
@@ -197,6 +197,7 @@ static int __init dummy_lproc_init(void)
 	printk(KERN_INFO "%s: We're the AP, vring0 pa 0x%p vring1 pa 0x%p\n",
 	       __func__, lproc->rsc_ring0.da, lproc->rsc_ring1.da);
 
+	localproc_init();
 	return 0;
 
 }
