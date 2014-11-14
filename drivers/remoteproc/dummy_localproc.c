@@ -23,8 +23,6 @@
 
 #include "dummy_proc.h"
 
-extern int localproc_init(void);
-
 struct dummy_rproc_resourcetable dummy_remoteproc_resourcetable
 	__attribute__((section(".resource_table"), aligned(PAGE_SIZE))) =
 {
@@ -197,7 +195,6 @@ static int __init dummy_lproc_init(void)
 	printk(KERN_INFO "%s: We're the AP, vring0 pa 0x%p vring1 pa 0x%p\n",
 	       __func__, lproc->rsc_ring0.da, lproc->rsc_ring1.da);
 
-	localproc_init();
 	return 0;
 
 }
