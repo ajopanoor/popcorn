@@ -89,51 +89,70 @@ void dummy_lproc_kick_bsp()
 }
 late_initcall(dummy_lproc_kick_bsp);
 
-void smp_dummy_lproc_kicked()
-{
-	ack_APIC_irq();
-	irq_enter();
-
-	printk(KERN_INFO "AP got kicked.\n");
-
-	irq_exit();
-}
-
 int dummy_rproc_match(struct device *dev, void *data)
 {
 	return (dev->driver && !strcmp(dev->driver->name, DRV_NAME));
 }
 
-void *dummy_lproc_bsp_data;
-void (*dummy_lproc_bsp_callback)(void *) = NULL;
+void *dummy_rproc_data;
+void (*dummy_rproc_callback)(void *) = NULL;
 
-int dummy_lproc_set_bsp_callback(void (*fn)(void *), void *data)
+int dummy_rproc_set_bsp_callback(void (*fn)(void *), void *data)
 {
 	if (unlikely(!is_bsp)) {
 		printk(KERN_ERR "%s: tried to register bsp callback on non-bsp.\n", __func__);
 		return -EFAULT;
 	}
 
-	dummy_lproc_bsp_callback = fn;
-	dummy_lproc_bsp_data = data;
+	dummy_rproc_callback= fn;
+	dummy_rproc_data = data;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dummy_lproc_set_bsp_callback);
+EXPORT_SYMBOL_GPL(dummy_rproc_set_bsp_callback);
 
 void smp_dummy_rproc_kicked()
 {
 	ack_APIC_irq();
 	irq_enter();
 
-	if (likely(dummy_lproc_bsp_callback))
-		dummy_lproc_bsp_callback(dummy_lproc_bsp_data);
+	if (likely(dummy_rproc_callback))
+		dummy_rproc_callback(dummy_rproc_data);
 	else
 		WARN_ONCE(1, "%s: got an IPI on BSP without any callback.\n", __func__);
 
 	irq_exit();
 }
 
+void *dummy_lproc_data;
+void (*dummy_lproc_callback)(void *) = NULL;
+
+int dummy_lproc_set_ap_callback(void (*fn)(void *), void *data)
+{
+	if (unlikely(is_bsp)) {
+		printk(KERN_ERR "%s: tried to register AP callback on bsp.\n", __func__);
+		return -EFAULT;
+	}
+
+	dummy_lproc_callback = fn;
+	dummy_lproc_data = data;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dummy_lproc_set_ap_callback);
+
+void smp_dummy_lproc_kicked()
+{
+	ack_APIC_irq();
+	irq_enter();
+
+	if (likely(dummy_lproc_callback))
+		dummy_lproc_callback(dummy_rproc_data);
+	else
+		WARN_ONCE(1, "%s: got an IPI on AP without any callback.\n", __func__);
+
+	irq_exit();
+}
 
 void dummy_proc_setup_intr(void)
 {

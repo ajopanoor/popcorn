@@ -34,6 +34,7 @@
 #include "dummy_proc.h"
 
 extern struct boot_params boot_params;
+extern int dummy_rproc_set_bsp_callback(void (*fn)(void *), void *data);
 
 char cmdline_override[COMMAND_LINE_SIZE];
 module_param(cmdline_override, charp, S_IRUGO | S_IWUSR);
@@ -204,6 +205,21 @@ static struct rproc_ops dummy_rproc_ops = {
 	.kick		= dummy_rproc_kick,
 };
 
+void dummy_rproc_isr(void *data)
+{
+	struct rproc *rproc= data;
+	int i;
+
+	printk(KERN_INFO "In %s %llu\n",__func__,++(rproc->intr_count));
+	/*
+	 * TODO:Notifyid should sould be derived runtime and don't iterate..
+	 */
+	for (i=0; i<rproc->max_notifyid; i++) {
+		if(rproc_vq_interrupt(rproc,i) == IRQ_NONE) {
+			printk(KERN_INFO "%s No msg found in vq %d\n",__func__,i);
+		}
+	}
+}
 static int dummy_rproc_probe(struct platform_device *pdev)
 {
 	struct rproc *rproc;
@@ -222,6 +238,9 @@ static int dummy_rproc_probe(struct platform_device *pdev)
 	if (unlikely(ret))
 		goto err;
 
+	if(dummy_rproc_set_bsp_callback(dummy_rproc_isr,(void *)rproc)) {
+		printk(KERN_ERR "%s: registering callback for lproc interrupts failed\n",__func__);
+	}
 	return 0;
 
 err:
