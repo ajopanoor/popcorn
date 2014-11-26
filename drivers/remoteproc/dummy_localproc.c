@@ -52,7 +52,7 @@ struct dummy_rproc_resourcetable dummy_remoteproc_resourcetable
 	.rsc_vdev = {
 		.id =		VIRTIO_ID_RPMSG,	/* found in virtio_ids.h */
 		.notifyid =	0,			/* magic number for IPC */
-		.dfeatures =	0,			/* features - none (??) */
+		.dfeatures =	1,			/* features - VIRTIO_RPMSG_F_NS*/
 		.gfeatures =	0,			/* negotiated features - blank */
 		.config_len =	0,			/* config len - none (??) */
 		.status =	0,			/* status - updated by bsp */
@@ -87,6 +87,8 @@ void dummy_lproc_kick_bsp()
 	printk(KERN_INFO "Kicking BSP.\n");
 	apic->send_IPI_single(0, DUMMY_RPROC_VECTOR);
 }
+EXPORT_SYMBOL_GPL(dummy_lproc_kick_bsp);
+
 late_initcall(dummy_lproc_kick_bsp);
 
 int dummy_rproc_match(struct device *dev, void *data)
@@ -147,7 +149,7 @@ void smp_dummy_lproc_kicked()
 	irq_enter();
 
 	if (likely(dummy_lproc_callback))
-		dummy_lproc_callback(dummy_rproc_data);
+		dummy_lproc_callback(dummy_lproc_data);
 	else
 		WARN_ONCE(1, "%s: got an IPI on AP without any callback.\n", __func__);
 
