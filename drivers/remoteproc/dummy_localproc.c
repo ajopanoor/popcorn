@@ -31,7 +31,8 @@
 #include <asm/x86_init.h>
 
 #include "dummy_proc.h"
-
+irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
+extern void localproc_init(void);
 struct dummy_rproc_resourcetable dummy_remoteproc_resourcetable
 	__attribute__((section(".resource_table"), aligned(PAGE_SIZE))) =
 {
@@ -154,7 +155,7 @@ int dummy_lproc_boot_remote_cpu(int boot_cpu, void *start_addr, void *boot_param
 }
 EXPORT_SYMBOL(dummy_lproc_boot_remote_cpu);
 
-static int __init dummy_lproc_kick_bsp(void)
+int __init dummy_lproc_kick_bsp(void)
 {
 	if (DUMMY_LPROC_IS_BSP())
 		return 0;
@@ -164,6 +165,7 @@ static int __init dummy_lproc_kick_bsp(void)
 
 	return 0;
 }
+EXPORT_SYMBOL(dummy_lproc_kick_bsp);
 late_initcall(dummy_lproc_kick_bsp);
 
 void smp_dummy_lproc_kicked(void)
@@ -178,32 +180,49 @@ void smp_dummy_lproc_kicked(void)
 
 void (*dummy_lproc_bsp_callback)(void *) = NULL;
 void *dummy_lproc_bsp_data;
-int dummy_rproc_set_bsp_callback(void (*fn)(void *), void *data)
+int dummy_lproc_set_bsp_callback(void (*fn)(void *), void *data)
 {
 	if (unlikely(!DUMMY_LPROC_IS_BSP())) {
 		printk(KERN_ERR "%s: tried to register bsp callback on non-bsp.\n", __func__);
 		return -EFAULT;
 	}
 
-	dummy_rproc_callback= fn;
-	dummy_rproc_data = data;
+	dummy_lproc_bsp_callback = fn;
+	dummy_lproc_bsp_data = data;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dummy_rproc_set_bsp_callback);
+EXPORT_SYMBOL_GPL(dummy_lproc_set_bsp_callback);
 
 void smp_dummy_rproc_kicked(void)
 {
 	ack_APIC_irq();
 	irq_enter();
 
-	if (likely(dummy_rproc_callback))
-		dummy_rproc_callback(dummy_rproc_data);
+	if (likely(dummy_lproc_bsp_callback))
+		dummy_lproc_bsp_callback(dummy_lproc_bsp_data);
 	else
 		WARN_ONCE(1, "%s: got an IPI on BSP without any callback.\n", __func__);
 
 	irq_exit();
 }
+
+void (*dummy_lproc_ap_callback)(void *) = NULL;
+void *dummy_lproc_ap_data;
+int dummy_lproc_set_ap_callback(void (*fn)(void *), void *data)
+{
+	if (unlikely(DUMMY_LPROC_IS_BSP())) {
+		printk(KERN_ERR "%s: tried to register ap callback on -bsp.\n", __func__);
+		return -EFAULT;
+	}
+
+	dummy_lproc_ap_callback = fn;
+	dummy_lproc_ap_data = data;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dummy_lproc_set_ap_callback);
+
 
 static int __init dummy_proc_setup_intr(void)
 {
@@ -258,7 +277,7 @@ static int __init dummy_lproc_init(void)
 		return 0;
 
 	printk(KERN_INFO "%s: we're the BSP\n", __func__);
-
+	is_bsp = true;
 	dummy_lproc_setup_trampoline();
 
 	return 0;
@@ -298,7 +317,6 @@ static int __init dummy_lproc_early_param(char *p)
 	dummy_lproc_id = 1;
 
 	x86_init.oem.banner = dummy_lproc_show_banner;
-	localproc_init();
 	return 0;
 }
 
