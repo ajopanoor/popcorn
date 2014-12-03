@@ -157,9 +157,6 @@ EXPORT_SYMBOL(dummy_lproc_boot_remote_cpu);
 
 int dummy_lproc_kick_bsp(void)
 {
-	printk(KERN_INFO "%s: %p dummy_lproc_id: %p(%d)",
-			__func__,dummy_lproc_kick_bsp, &dummy_lproc_id, dummy_lproc_id);
-
 	if (DUMMY_LPROC_IS_BSP())
 		return 0;
 
@@ -317,9 +314,6 @@ static int __init dummy_lproc_early_param(char *p)
 		       __func__);
 		return -EFAULT;
 	}
-
-	printk(KERN_INFO "%s: We're the AP, vring0 pa 0x%x vring1 pa 0x%x\n",
-	       __func__, lproc->rsc_ring0.da, lproc->rsc_ring1.da);
 
 	dummy_lproc_id = 1;
 
