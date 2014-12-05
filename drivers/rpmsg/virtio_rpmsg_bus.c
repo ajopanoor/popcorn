@@ -1027,7 +1027,7 @@ static void create_dummy_rpmsg_ept(struct virtproc_info *vrp)
 
 	strncpy(msg.name,"lproc",sizeof(msg.name));
 
-	msg.addr = 1048;	//hack till we use idr to get one.
+	msg.addr = 1048;	//TODO hack till we use idr to get one.
 	msg.flags|= RPMSG_NS_CREATE;
 
 	strncpy(chinfo.name, msg.name, sizeof(chinfo.name));
@@ -1081,12 +1081,10 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	vrp->rvq = vqs[(is_bsp?0:1)];
 	vrp->svq = vqs[(is_bsp?1:0)];
 
-
 	/* allocate coherent memory for the buffers */
 	bufs_va = dma_alloc_coherent(dev_parent,
 				RPMSG_TOTAL_BUF_SPACE,
 				&vrp->bufs_dma, GFP_KERNEL);
-
 	if (!bufs_va) {
 		dev_err(&vdev->dev, "failed bufs_va %p\n",bufs_va);
 		err = -ENOMEM;
