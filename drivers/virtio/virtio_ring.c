@@ -542,6 +542,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	vq->weak_barriers = weak_barriers;
 	vq->broken = false;
 	vq->last_used_idx = 0;
+	vq->last_avail_idx = 0;
 	vq->num_added = 0;
 	list_add_tail(&vq->vq.list, &vdev->vqs);
 #ifdef DEBUG
@@ -671,7 +672,6 @@ int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
 		if(desc->flags & VRING_DESC_F_WRITE)
 			*in += ret;
 		else {
-			printk(KERN_ERR "We are not expecting out buffers here\n");
 			*out += ret;
 		}
 	} while((i = __next_desc(desc)) != -1);
