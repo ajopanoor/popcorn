@@ -105,7 +105,8 @@ struct vring_virtqueue
 	u16 last_used_idx;
 
 	/*TODO: HACK for RPMSG, need to remove during upstream porting */
-	u16 last_avail_idx;
+	u16 hlast_used_idx;
+	u16 hlast_avail_idx;
 	/* How to notify other side. FIXME: commonalize hcalls! */
 	void (*notify)(struct virtqueue *vq);
 
@@ -186,6 +187,9 @@ int virtqueue_add_buf_gfp(struct virtqueue *_vq,
 	unsigned int i, avail, uninitialized_var(prev);
 	int head;
 
+	if(strncmp(_vq->name, "var", 3) == 0)
+		__debug_virtqueue(_vq,"dump before virtqueue_add_buf_gfp");
+
 	START_USE(vq);
 
 	BUG_ON(data == NULL);
@@ -248,6 +252,9 @@ add_head:
 
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
+
+	if(strncmp(_vq->name, "var", 3) == 0)
+		__debug_virtqueue(_vq,"dump after virtqueue_add_buf_gfp");
 
 	return vq->num_free;
 }
@@ -330,7 +337,7 @@ void __debug_virtqueue(struct virtqueue *_vq, char *fmt)
 	printk(KERN_INFO "avail_desc stats:\n");
 	printk(KERN_INFO "\t\tring[%d]=%d lst_avl_idx=%d vring.avl.idx=%d\n",
 			avail,vq->vring.avail->ring[avail],
-			vq->last_avail_idx,vq->vring.avail->idx);
+			vq->hlast_avail_idx,vq->vring.avail->idx);
 
 	printk(KERN_INFO "virtqueue stats:\n");
 	printk(KERN_INFO "\t\tvq.num_free=%u vq.free_head=%u\n",
@@ -338,7 +345,7 @@ void __debug_virtqueue(struct virtqueue *_vq, char *fmt)
 	printk(KERN_INFO "\t\tvq.num_added=%u vq.last_used_idx=%u\n",
 			vq->num_added,vq->last_used_idx);
 
-	head = vq->last_avail_idx % vq->vring.num;
+	head = vq->hlast_avail_idx % vq->vring.num;
 	desc = &vq->vring.desc[head];
 
 	printk(KERN_INFO "desc stats:\n");
@@ -361,6 +368,10 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 	unsigned int i;
 
 	START_USE(vq);
+
+	if(strncmp(_vq->name, "var", 3) == 0)
+		__debug_virtqueue(_vq,"dump before virtqueue_get_buf");
+
 
 	if (unlikely(vq->broken)) {
 		END_USE(vq);
@@ -401,6 +412,9 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 		vring_used_event(&vq->vring) = vq->last_used_idx;
 		virtio_mb(vq);
 	}
+
+	if(strncmp(_vq->name, "var", 3) == 0)
+		__debug_virtqueue(_vq,"dump after virtqueue_get_buf");
 
 	END_USE(vq);
 	return ret;
@@ -542,7 +556,8 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	vq->weak_barriers = weak_barriers;
 	vq->broken = false;
 	vq->last_used_idx = 0;
-	vq->last_avail_idx = 0;
+	vq->hlast_avail_idx = 0;
+	vq->hlast_used_idx = 0;
 	vq->num_added = 0;
 	list_add_tail(&vq->vq.list, &vdev->vqs);
 #ifdef DEBUG
@@ -641,15 +656,19 @@ int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
 	u16 avail_idx;
 
 	avail_idx = vq->vring.avail->idx;
-	printk(KERN_DEBUG "%s: vq %s avail_idx %u vq->last_avail_idx %u\n",
-			__func__, _vq->name, avail_idx, vq->last_avail_idx);
-	if(vq->vring.avail->idx == vq->last_avail_idx) {
+	printk(KERN_DEBUG "%s: vq %s avail_idx %u vq->hlast_avail_idx %u\n",
+			__func__, _vq->name, avail_idx, vq->hlast_avail_idx);
+
+	if(strncmp(_vq->name, "var", 3) == 0)
+		__debug_virtqueue(_vq,"dump before get_avail_buf");
+
+	if(vq->vring.avail->idx == vq->hlast_avail_idx) {
 		//TODO: we may need to wait and re-check
 		printk(KERN_ERR "%s:dummy_rpmsg: no avail buffers\n",__func__);
 		return -1U;
 	}
 
-	head = vq->last_avail_idx % vq->vring.num;
+	head = vq->hlast_avail_idx % vq->vring.num;
 	BUG_ON(head > vq->vring.num);
 
 	i = head;
@@ -672,7 +691,11 @@ int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
 		}
 	} while((i = __next_desc(desc)) != -1);
 
-	vq->last_avail_idx++;
+	vq->hlast_avail_idx++;
+
+	if(strncmp(_vq->name, "var", 3) == 0)
+		__debug_virtqueue(_vq,"dump after get_avail_buf");
+
 	return head;
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_avail_buf);
@@ -680,7 +703,7 @@ EXPORT_SYMBOL_GPL(virtqueue_get_avail_buf);
 static inline bool more_avail(const struct vring_virtqueue *vq)
 {
 
-	return vq->last_avail_idx != vq->vring.avail->idx;
+	return vq->hlast_avail_idx != vq->vring.avail->idx;
 }
 
 int virtqueue_update_used_idx(struct virtqueue *_vq, u16 used_idx, int len)
@@ -688,13 +711,13 @@ int virtqueue_update_used_idx(struct virtqueue *_vq, u16 used_idx, int len)
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	struct vring_used_elem *used;
 
-	used = &vq->vring.used->ring[vq->last_used_idx % vq->vring.num];
+	used = &vq->vring.used->ring[vq->hlast_used_idx % vq->vring.num];
 	used->id = used_idx;
 	used->len = len;
-	vq->vring.used->idx = vq->last_used_idx + 1;
+	vq->vring.used->idx = vq->hlast_used_idx + 1;
 	printk(KERN_DEBUG "%s: %s used_idx %u len %d vq->vring.used->idx %d\n",
 			__func__, _vq->name, used_idx, len, vq->vring.used->idx);
-	vq->last_used_idx++;
+	vq->hlast_used_idx++;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(virtqueue_update_used_idx);
