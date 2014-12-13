@@ -124,47 +124,49 @@ struct vring_virtqueue
 /*
  * TODO: Move this rpmsg specific virtio hacks out of this library.
  */
-void __debug_virtqueue(struct virtqueue *_vq, char *fmt);
 
-void __debug_virtqueue(struct virtqueue *_vq, char *fmt)
+void __debug_virtqueue(struct virtqueue *_vq, char *q, char *fmt)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	struct vring_desc *desc;
 	int i,head,avail,used;
 
+	if(strcmp(q,_vq->name) != 0)
+		return;
+
 	avail = vq->vring.avail->idx % vq->vring.num;
 	used = vq->vring.used->idx % vq->vring.num;
 
-	printk(KERN_INFO "%s:vq %p queue name %s\n",fmt, vq, _vq->name);
-	printk(KERN_INFO "used_desc stats:\n");
-	printk(KERN_INFO "\t\tring[%d].id=%u .len=%d vq.lst_usd_idx=%d "
+	pr_info("%s:vq name %s\n",fmt,_vq->name);
+	pr_info("used_desc stats:\n");
+	pr_info("\t\tring[%d].id=%u .len=%d vq.lst_usd_idx=%d "
 			"vring.usd.idx=%d\n",
 			used,vq->vring.used->ring[used].id,
 			vq->vring.used->ring[used].len,
 			vq->last_used_idx,vq->vring.used->idx);
 
-	printk(KERN_INFO "avail_desc stats:\n");
-	printk(KERN_INFO "\t\tring[%d]=%d lst_avl_idx=%d vring.avl.idx=%d\n",
+	pr_info("avail_desc stats:\n");
+	pr_info("\t\tring[%d]=%d lst_avl_idx=%d vring.avl.idx=%d\n",
 			avail,vq->vring.avail->ring[avail],
 			vq->hlast_avail_idx,vq->vring.avail->idx);
 
-	printk(KERN_INFO "virtqueue stats:\n");
-	printk(KERN_INFO "\t\tvq.num_free=%u vq.free_head=%u\n",
+	pr_info("virtqueue stats:\n");
+	pr_info("\t\tvq.num_free=%u vq.free_head=%u\n",
 			vq->num_free, vq->free_head);
-	printk(KERN_INFO "\t\tvq.num_added=%u vq.last_used_idx=%u\n",
+	pr_info("\t\tvq.num_added=%u vq.last_used_idx=%u\n",
 			vq->num_added,vq->last_used_idx);
 
-	head = vq->hlast_avail_idx % vq->vring.num;
+	head = vq->vring.avail->idx % vq->vring.num;
 	desc = &vq->vring.desc[head];
 
-	printk(KERN_INFO "desc stats:\n");
-	printk(KERN_INFO "\t\thead=%d desc.addr=%p desc.len=%d\n",
-				head, desc->addr, desc->len);
+	pr_info("desc stats:\n");
+	pr_info("\t\thead=%d desc.addr=%p desc.len=%d\n",
+				head, (void *)desc->addr, desc->len);
 	if(strncmp(fmt,"debug_queue",11) == 0) {
 		for(i=0; i < vq->vring.num; i++) {
 			desc = &vq->vring.desc[i];
-			printk(KERN_INFO "\t\t[%3d].addr=%p .len=%d\n", i,
-					desc->addr, desc->len);
+			pr_info("\t\t[%3d].addr=%p .len=%d\n", i,
+					(void *)desc->addr, desc->len);
 		}
 	}
 }
@@ -232,9 +234,6 @@ int virtqueue_add_buf_gfp(struct virtqueue *_vq,
 	unsigned int i, avail, uninitialized_var(prev);
 	int head;
 
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq,"dump before virtqueue_add_buf_gfp");
-
 	START_USE(vq);
 
 	BUG_ON(data == NULL);
@@ -298,9 +297,6 @@ add_head:
 	pr_debug("Added buffer head %i to %p\n", head, vq);
 	END_USE(vq);
 
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq,"dump after virtqueue_add_buf_gfp");
-
 	return vq->num_free;
 }
 EXPORT_SYMBOL_GPL(virtqueue_add_buf_gfp);
@@ -328,9 +324,6 @@ void virtqueue_kick(struct virtqueue *_vq)
 		vq->notify(&vq->vq);
 
 	END_USE(vq);
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq, "dump after virtqueue_kick");
-
 }
 EXPORT_SYMBOL_GPL(virtqueue_kick);
 
@@ -373,10 +366,6 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 
 	START_USE(vq);
 
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq,"dump before virtqueue_get_buf");
-
-
 	if (unlikely(vq->broken)) {
 		END_USE(vq);
 		return NULL;
@@ -395,12 +384,10 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 	*len = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].len;
 
 	if (unlikely(i >= vq->vring.num)) {
-		__debug_virtqueue(_vq,"virtqueue_get_buf:id out of range");
 		BAD_RING(vq, "id %u out of range\n", i);
 		return NULL;
 	}
 	if (unlikely(!vq->data[i])) {
-		__debug_virtqueue(_vq,"virtqueue_get_buf:not head");
 		BAD_RING(vq, "id %u is not a head!\n", i);
 		return NULL;
 	}
@@ -416,9 +403,6 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 		vring_used_event(&vq->vring) = vq->last_used_idx;
 		virtio_mb(vq);
 	}
-
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq,"dump after virtqueue_get_buf");
 
 	END_USE(vq);
 	return ret;
@@ -635,7 +619,7 @@ static unsigned __next_desc(struct vring_desc *desc)
 	return next;
 }
 
-static int __translate_desc(u64 addr, u32 len, struct iovec iov[])
+static int __translate_desc(void *addr, u32 len, struct iovec iov[])
 {
 	struct iovec *_iov;
 
@@ -650,7 +634,7 @@ static int __translate_desc(u64 addr, u32 len, struct iovec iov[])
 	return 1;
 }
 
-int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
+int virtqueue_get_avail_buf(struct virtqueue *_vq, int *out, int *in,
 		struct iovec iov[], int iov_size)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
@@ -660,19 +644,14 @@ int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
 	u16 avail_idx;
 
 	avail_idx = vq->vring.avail->idx;
-	printk(KERN_DEBUG "%s: vq %s avail_idx %u vq->hlast_avail_idx %u\n",
-			__func__, _vq->name, avail_idx, vq->hlast_avail_idx);
-
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq, "dump before get_avail_buf");
 
 	if(vq->vring.avail->idx == vq->hlast_avail_idx) {
 		//TODO: we may need to wait and re-check
-		printk(KERN_ERR "%s:dummy_rpmsg: no avail buffers\n",__func__);
+		pr_err("%s: no avail buffers\n",__func__);
 		return -1U;
 	}
 
-	head = vq->vring.avail->ring[avail_idx % vq->vring.num];
+	head = vq->vring.avail->ring[vq->hlast_avail_idx % vq->vring.num];
 	BUG_ON(head > vq->vring.num);
 
 	i = head;
@@ -682,10 +661,10 @@ int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
 		iov_count = *in + *out;
 		desc = &vq->vring.desc[i];
 
-		ret = __translate_desc(desc->addr, desc->len, iov + iov_count);
+		ret = __translate_desc((void *)desc->addr, desc->len,
+							iov + iov_count);
 		if(unlikely(ret < 0)) {
-			printk(KERN_ERR "Translation failure %d"
-					"desc idx %d\n",ret, i);
+			pr_err("Translation failure %d desc idx %d\n",ret, i);
 			return ret;
 		}
 		if(desc->flags & VRING_DESC_F_WRITE)
@@ -697,9 +676,9 @@ int virtqueue_get_avail_buf(struct virtqueue *_vq, int *in, int *out,
 
 	vq->hlast_avail_idx++;
 
-	if(strncmp(_vq->name, "var", 3) == 0)
-		__debug_virtqueue(_vq, "dump after get_avail_buf");
-
+	pr_debug("%s: vq %s avl_idx %d lavl_idx %d head %d out %d in %d\n",
+			__func__, _vq->name, avail_idx, vq->hlast_avail_idx,
+			head, *out, *in);
 	return head;
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_avail_buf);
@@ -710,7 +689,7 @@ static inline bool more_avail(const struct vring_virtqueue *vq)
 	return vq->hlast_avail_idx != vq->vring.avail->idx;
 }
 
-int virtqueue_update_used_idx(struct virtqueue *_vq, u16 used_idx, int len)
+void virtqueue_update_used_idx(struct virtqueue *_vq, u16 used_idx, int len)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	struct vring_used_elem *used;
@@ -719,10 +698,9 @@ int virtqueue_update_used_idx(struct virtqueue *_vq, u16 used_idx, int len)
 	used->id = used_idx;
 	used->len = len;
 	vq->vring.used->idx = vq->hlast_used_idx + 1;
-	printk(KERN_DEBUG "%s: %s used_idx %u len %d vq->vring.used->idx %d\n",
+	pr_debug(KERN_DEBUG "%s: %s used_idx %u len %d vring.used->idx %d\n",
 			__func__, _vq->name, used_idx, len, vq->vring.used->idx);
 	vq->hlast_used_idx++;
-	return 0;
 }
 EXPORT_SYMBOL_GPL(virtqueue_update_used_idx);
 
@@ -731,14 +709,13 @@ irqreturn_t vring_avail_interrupt(int irq, void *_vq)
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	if (!more_avail(vq)) {
-		printk("virtqueue interrupt with no work for %p\n", vq);
+		pr_debug(KERN_DEBUG "virtqueue interrupt with no work for %p\n", vq);
 		return IRQ_NONE;
 	}
 
 	if (unlikely(vq->broken))
 		return IRQ_HANDLED;
 
-	printk("virtqueue callback for %p (%p)\n", vq, vq->vq.callback);
 	if (vq->vq.callback)
 		vq->vq.callback(&vq->vq);
 
