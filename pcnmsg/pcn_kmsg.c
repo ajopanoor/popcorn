@@ -28,7 +28,7 @@
 #define LOGLEN 4
 #define LOGCALL 32
 
-#define KMSG_VERBOSE 0
+#define KMSG_VERBOSE 1
 
 #if KMSG_VERBOSE
 #define KMSG_PRINTK(fmt, args...) printk("%s: " fmt, __func__, ##args)
@@ -608,6 +608,7 @@ static int __init pcn_kmsg_init(void)
 
 		/* Otherwise, we need to set the boot_params to show the rest
 		   of the kernels where the master kernel's messaging window 
+		   M
 		   is. */
 		KMSG_INIT("Setting boot_params...\n");
 		boot_params.pcn_kmsg_master_window = rkinfo_phys_addr;
@@ -653,7 +654,7 @@ static int __init pcn_kmsg_init(void)
 	}
 
 	/* If we're not the master kernel, we need to check in */
-	if (local) {
+	if (!local) {
 		rc = do_checkin();
 
 		if (rc) { 
@@ -720,6 +721,7 @@ static int __pcn_kmsg_send(unsigned int dest_cpu, struct pcn_kmsg_message *msg,
 	int rc;
 	struct pcn_kmsg_window *dest_window;
 
+	KMSG_PRINTK("reached...\n");
 	if (unlikely(dest_cpu >= POPCORN_MAX_CPUS)) {
 		KMSG_ERR("Invalid destination CPU %d\n", dest_cpu);
 		return -1;
@@ -728,7 +730,7 @@ static int __pcn_kmsg_send(unsigned int dest_cpu, struct pcn_kmsg_message *msg,
 	dest_window = rkvirt[dest_cpu];
 
 	if (unlikely(!rkvirt[dest_cpu])) {
-		//KMSG_ERR("Dest win for CPU %d not mapped!\n", dest_cpu);
+		KMSG_ERR("Dest win for CPU %d not mapped!\n", dest_cpu);
 		return -1;
 	}
 
@@ -740,6 +742,7 @@ static int __pcn_kmsg_send(unsigned int dest_cpu, struct pcn_kmsg_message *msg,
 	/* set source CPU */
 	msg->hdr.from_cpu = my_cpu;
 
+	KMSG_PRINTK("calling win_put\n");
 	rc = win_put(dest_window, msg, no_block);
 
 	if (rc) {

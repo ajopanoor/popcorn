@@ -9,8 +9,9 @@
 #include <linux/multikernel.h>
 #include <linux/pcn_kmsg.h>
 #include <linux/pcn_kmsg_test.h>
+#include <asm/processor.h>
 
-#define KMSG_TEST_VERBOSE 0
+#define KMSG_TEST_VERBOSE 1
 
 #if KMSG_TEST_VERBOSE
 #define TEST_PRINTK(fmt, args...) printk("%s: " fmt, __func__, ##args)
@@ -66,7 +67,7 @@ static int pcn_kmsg_test_send_pingpong(struct pcn_kmsg_test_args __user *args)
 
 	rdtscll(tsc_init);
 	pcn_kmsg_send(args->cpu, (struct pcn_kmsg_message *) &msg);
-	while (!kmsg_done) {}
+	while (!kmsg_done) { schedule(); }
 
 	TEST_PRINTK("Elapsed time (ticks): %lu\n", kmsg_tsc - tsc_init);
 
