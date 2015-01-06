@@ -166,7 +166,7 @@ int dummy_lproc_kick_bsp(void)
 	if (DUMMY_LPROC_IS_BSP())
 		return 0;
 
-	printk(KERN_INFO "Kicking BSP.\n");
+	//printk(KERN_DEBUG "Kicking BSP.\n");
 	apic->send_IPI_single(0, DUMMY_RPROC_VECTOR);
 
 	return 0;
@@ -195,7 +195,7 @@ void smp_dummy_lproc_kicked(void)
 	ack_APIC_irq();
 	irq_enter();
 
-	printk(KERN_INFO "AP got kicked.\n");
+	//printk(KERN_DEBUG "AP got kicked.\n");
 	if (likely(dummy_lproc_ap_callback))
 		dummy_lproc_ap_callback(dummy_lproc_ap_data);
 	else

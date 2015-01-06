@@ -288,7 +288,7 @@ static int dummy_rproc_stop(struct rproc *rproc)
 
 static void dummy_rproc_kick(struct rproc *rproc, int vqid)
 {
-	dev_notice(&rproc->dev, "Kicking virtqueue id #%d via apic %s\n", vqid, apic->name);
+	dev_dbg(&rproc->dev, "Kicking virtqueue id #%d via apic %s\n", vqid, apic->name);
 	apic->send_IPI_single(boot_cpu, DUMMY_LPROC_VECTOR);
 }
 
